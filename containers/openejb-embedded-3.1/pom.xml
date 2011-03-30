@@ -41,12 +41,6 @@
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.jboss.arquillian</groupId>
-			<artifactId>arquillian-impl-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- 
     External Projects
      -->
