@@ -16,41 +16,33 @@
  */
 package org.jboss.arquillian.container.tomcat.remote_6;
 
+import java.awt.PageAttributes.MediaType;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Logger;
+import javax.xml.xpath.XPathExpressionException;
 
 import org.apache.catalina.Container;
-import org.apache.catalina.Engine;
-import org.apache.catalina.Host;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardHost;
-import org.apache.catalina.loader.WebappLoader;
 import org.apache.catalina.startup.Embedded;
 import org.apache.catalina.startup.ExpandWar;
-import org.apache.commons.lang.StringUtils;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.jboss.arquillian.spi.client.container.DeployableContainer;
 import org.jboss.arquillian.spi.client.container.DeploymentException;
 import org.jboss.arquillian.spi.client.container.LifecycleException;
 import org.jboss.arquillian.spi.client.protocol.ProtocolDescription;
-import org.jboss.arquillian.spi.client.protocol.metadata.HTTPContext;
 import org.jboss.arquillian.spi.client.protocol.metadata.ProtocolMetaData;
-import org.jboss.arquillian.spi.client.protocol.metadata.Servlet;
 import org.jboss.arquillian.spi.core.InstanceProducer;
 import org.jboss.arquillian.spi.core.annotation.DeploymentScoped;
 import org.jboss.arquillian.spi.core.annotation.Inject;
 import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 import org.jboss.shrinkwrap.descriptor.api.Descriptor;
-import org.jboss.shrinkwrap.tomcat_6.api.ShrinkWrapStandardContext;
 
 /**
  * <p>Arquillian {@link DeployableContainer} implementation for an
@@ -127,57 +119,43 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
     * @return
     * @throws DeploymentException 
     */
-   public ProtocolMetaData deploy(final Archive<?> archive) throws DeploymentException
-   {
-      // Try: curl --upload-file <path to warfile> "http://<tomcat username>:<tomcat password>@<hostname>:<port>/manager/deploy?path=/<context>&update=true"
-      HttpClient client = new DefaultHttpClient();
-      archive.getName().substring(0, archive.getName().get )
-      String uri = String.format("http://%s:%s@%s:%d/manager/deploy?path=/%s&update=true",
-              this.conf.getUser(), this.conf.getPass(), this.conf.getHost(), StringUtils.substringBefore(archive.getName(), ".")  );
-      client.execute( new HttpPost(this), )
-      
-      try
-      {
-         StandardContext standardContext = archive.as(ShrinkWrapStandardContext.class);
-         standardContext.addLifecycleListener(new EmbeddedContextConfig());
-         standardContext.setUnpackWAR(conf.isUnpackArchive());
-         standardContext.setJ2EEServer("Arquillian-" + UUID.randomUUID().toString());
-         
-         // Need to tell TomCat to use TCCL as parent, else the WebContextClassloader will be looking in AppCL 
-         standardContext.setParentClassLoader(Thread.currentThread().getContextClassLoader());
+    public ProtocolMetaData deploy(Archive<?> archive) throws DeploymentException {
+        if (archive == null) {
+            throw new IllegalArgumentException("archive must not be null");
+        }
 
-         if (standardContext.getUnpackWAR())
-         {
-            deleteUnpackedWAR(standardContext);
-         }
+        final String archiveName = archive.getName();
 
-         // Override the default Tomcat WebappClassLoader, it delegates to System first. Half our testable app is on System classpath.
-         WebappLoader webappLoader = new WebappLoader(standardContext.getParentClassLoader());
-         webappLoader.setDelegate(standardContext.getDelegate());
-         webappLoader.setLoaderClass(EmbeddedWebappClassLoader.class.getName());
-         standardContext.setLoader(webappLoader);
+        try {
+            // Export to a file so we can send it over the wire
+            final File archiveFile = new File(new File(System.getProperty("java.io.tmpdir")), archiveName);
+            archive.as(ZipExporter.class).exportZip(archiveFile, true);
 
-         standardHost.addChild(standardContext);
-         
-         standardContextProducer.set(standardContext);
+            // Build up the POST form to send to Glassfish
+            final FormDataMultiPart form = new FormDataMultiPart();
+            form.getBodyParts().add(new FileDataBodyPart("id", archiveFile));
+            form.field("contextroot", archiveName.substring(0, archiveName.lastIndexOf(".")), MediaType.TEXT_PLAIN_TYPE);
+            deploymentName = archiveName.substring(0, archiveName.lastIndexOf("."));
+            form.field("name", deploymentName, MediaType.TEXT_PLAIN_TYPE);
+            final String xmlResponse = prepareClient(APPLICATION).type(MediaType.MULTIPART_FORM_DATA_TYPE)
+                    .post(String.class, form);
 
-         String contextPath = standardContext.getPath();
-         HTTPContext httpContext = new HTTPContext(bindAddress, bindPort);
-         
-         for(String mapping : standardContext.findServletMappings())
-         {
-            httpContext.add(new Servlet(
-                  standardContext.findServletMapping(mapping), contextPath));
-         }
-         
-         return new ProtocolMetaData()
-            .addContext(httpContext);
-      }
-      catch (Exception e)
-      {
-         throw new DeploymentException("Failed to deploy " + archive.getName(), e);
-      }
-   }
+            try {
+                if (!isCallSuccessful(xmlResponse)) {
+                    throw new DeploymentException(getMessage(xmlResponse));
+                }
+            } catch (XPathExpressionException e) {
+                throw new DeploymentException("Error finding exit code or message", e);
+            }
+
+            // Call has been successful, now we need another call to get the list of servlets
+            final String subComponentsResponse = prepareClient(LIST_SUB_COMPONENTS + this.deploymentName).get(String.class);
+
+            return this.parseForProtocolMetaData(subComponentsResponse);
+        } catch (XPathExpressionException e) {
+            throw new DeploymentException("Error in creating / deploying archive", e);
+        }
+    }
 
    public void undeploy(final Archive<?> archive) throws DeploymentException
    {
