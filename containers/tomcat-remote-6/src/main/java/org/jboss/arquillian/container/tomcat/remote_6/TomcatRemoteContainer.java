@@ -25,6 +25,7 @@ import javax.xml.xpath.XPathExpressionException;
 
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.multipart.FormDataBodyPart;
 import com.sun.jersey.multipart.FormDataMultiPart;
 import com.sun.jersey.multipart.file.FileDataBodyPart;
@@ -204,6 +205,8 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
      */
     private WebResource.Builder prepareClient(String additionalResourceUrl) {
         final Client client = Client.create();
+        // Auth
+        client.addFilter( new HTTPBasicAuthFilter( this.conf.getUser(), this.conf.getPass()) );
         return client.resource( this.adminBaseUrl + additionalResourceUrl ).accept(MediaType.TEXT_PLAIN_TYPE);
     }
     

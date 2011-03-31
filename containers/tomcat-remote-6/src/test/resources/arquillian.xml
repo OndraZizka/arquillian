@@ -9,6 +9,8 @@
                <property name="workDir">work</property>
                <property name="bindHttpPort">8080</property>
                <property name="unpackArchive">true</property>
+               <property name="user">admin</property>
+               <property name="pass">admin</property>
            </configuration>
        </container>
 </arquillian>
