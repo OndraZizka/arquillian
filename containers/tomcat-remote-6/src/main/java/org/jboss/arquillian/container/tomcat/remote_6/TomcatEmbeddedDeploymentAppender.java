@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jboss.arquillian.container.tomcat.embedded_6;
+package org.jboss.arquillian.container.tomcat.remote_6;
 
 import org.jboss.arquillian.spi.TestEnricher;
 import org.jboss.arquillian.spi.client.deployment.AuxiliaryArchiveAppender;
