@@ -38,11 +38,13 @@ import org.junit.runner.RunWith;
  * @author <a href="mailto:jean.deruelle@gmail.com">Jean Deruelle</a>
  * @author Dan Allen
  * @version $Revision: $
+ * 
+ * TODO: Externalize port?
  */
 @RunWith(Arquillian.class)
-public class TomcatEmbeddedClientTestCase
+public class TomcatRemoteClientTestCase
 {
-	private static final String HELLO_WORLD_URL = "http://localhost:8888/test/Test";
+	private static final String HELLO_WORLD_URL = "http://localhost:8080/test/Test";
 
 	// -------------------------------------------------------------------------------------||
 	// Class Members -----------------------------------------------------------------------||
@@ -51,7 +53,7 @@ public class TomcatEmbeddedClientTestCase
 	/**
 	 * Logger
 	 */
-	private static final Logger log = Logger.getLogger(TomcatEmbeddedClientTestCase.class.getName());
+	private static final Logger log = Logger.getLogger(TomcatRemoteClientTestCase.class.getName());
 
 	// -------------------------------------------------------------------------------------||
 	// Instance Members --------------------------------------------------------------------||

@@ -16,30 +16,30 @@
  */
 package org.jboss.arquillian.container.tomcat.remote_6;
 
-import java.awt.PageAttributes.MediaType;
 import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.xml.xpath.XPathExpressionException;
 
-import org.apache.catalina.Container;
-import org.apache.catalina.connector.Connector;
-import org.apache.catalina.core.StandardContext;
-import org.apache.catalina.core.StandardHost;
-import org.apache.catalina.startup.Embedded;
-import org.apache.catalina.startup.ExpandWar;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.multipart.FormDataBodyPart;
+import com.sun.jersey.multipart.FormDataMultiPart;
+import com.sun.jersey.multipart.file.FileDataBodyPart;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
+import javax.ws.rs.core.MediaType;
+
 import org.jboss.arquillian.spi.client.container.DeployableContainer;
 import org.jboss.arquillian.spi.client.container.DeploymentException;
 import org.jboss.arquillian.spi.client.container.LifecycleException;
 import org.jboss.arquillian.spi.client.protocol.ProtocolDescription;
+import org.jboss.arquillian.spi.client.protocol.metadata.HTTPContext;
 import org.jboss.arquillian.spi.client.protocol.metadata.ProtocolMetaData;
-import org.jboss.arquillian.spi.core.InstanceProducer;
-import org.jboss.arquillian.spi.core.annotation.DeploymentScoped;
-import org.jboss.arquillian.spi.core.annotation.Inject;
+import org.jboss.arquillian.spi.client.protocol.metadata.Servlet;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 import org.jboss.shrinkwrap.descriptor.api.Descriptor;
@@ -56,21 +56,30 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
 {
    private static final Logger log = Logger.getLogger(TomcatRemoteContainer.class.getName());
 
+   
    private static final String TMPDIR_SYS_PROP = "java.io.tmpdir";
-
+   
+   private static final String URL_PATH_DEPLOY = "/deploy";
+   
+   private static final String URL_PATH_UNDEPLOY = "/undeploy";
+   
+   private static final String URL_PATH_LIST = "/list";
+   
+   
 
    /**
     * Tomcat container configuration
     */
    private TomcatRemoteConfiguration conf;
+   
+   private String adminBaseUrl;
+
+   private String deploymentName;
 
    private boolean wasStarted;
 
    private final List<String> failedUndeployments = new ArrayList<String>();
 
-   @Inject @DeploymentScoped 
-   private InstanceProducer<StandardContext> standardContextProducer;
-   
    public Class<TomcatRemoteConfiguration> getConfigurationClass()
    {
       return TomcatRemoteConfiguration.class;
@@ -81,16 +90,24 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
       return new ProtocolDescription("Servlet 2.5");
    }
    
+   @Override
    public void setup(TomcatRemoteConfiguration configuration)
    {
       this.conf = configuration;
+      
+      this.adminBaseUrl = String.format("http://%s:%s@%s:%d/manager",
+              this.conf.getUser(), this.conf.getPass(), this.conf.getHost(), this.conf.getHttpPort() );
+      
+      // StringUtils.substringBefore(archive.getName(), ".")
    }
 
+   @Override
    public void start() throws LifecycleException
    {
       // TODO: Check that Tomcat is running.
    }
 
+   @Override
    public void stop() throws LifecycleException
    {
       // TODO: Shutdown on :8005?
@@ -99,6 +116,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
    /* (non-Javadoc)
     * @see org.jboss.arquillian.spi.client.container.DeployableContainer#deploy(org.jboss.shrinkwrap.descriptor.api.Descriptor)
     */
+   @Override
    public void deploy(Descriptor descriptor) throws DeploymentException
    {
       throw new UnsupportedOperationException("Not implemented");      
@@ -107,6 +125,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
    /* (non-Javadoc)
     * @see org.jboss.arquillian.spi.client.container.DeployableContainer#undeploy(org.jboss.shrinkwrap.descriptor.api.Descriptor)
     */
+   @Override
    public void undeploy(Descriptor descriptor) throws DeploymentException
    {
       throw new UnsupportedOperationException("Not implemented");      
@@ -119,6 +138,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
     * @return
     * @throws DeploymentException 
     */
+    @Override
     public ProtocolMetaData deploy(Archive<?> archive) throws DeploymentException {
         if (archive == null) {
             throw new IllegalArgumentException("archive must not be null");
@@ -133,23 +153,27 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
 
             // Build up the POST form to send to Glassfish
             final FormDataMultiPart form = new FormDataMultiPart();
-            form.getBodyParts().add(new FileDataBodyPart("id", archiveFile));
-            form.field("contextroot", archiveName.substring(0, archiveName.lastIndexOf(".")), MediaType.TEXT_PLAIN_TYPE);
-            deploymentName = archiveName.substring(0, archiveName.lastIndexOf("."));
-            form.field("name", deploymentName, MediaType.TEXT_PLAIN_TYPE);
-            final String xmlResponse = prepareClient(APPLICATION).type(MediaType.MULTIPART_FORM_DATA_TYPE)
+            form.getBodyParts().add(new FormDataBodyPart("update", "true"));
+            form.getBodyParts().add(new FileDataBodyPart("file", archiveFile));
+            
+            String name = archiveName.substring(0, archiveName.lastIndexOf("."));
+            this.deploymentName = name;
+            form.field("context", name, MediaType.TEXT_PLAIN_TYPE);
+            //form.field("name", name, MediaType.TEXT_PLAIN_TYPE);
+            final String textResponse = prepareClient(URL_PATH_DEPLOY)
+                    .type(MediaType.MULTIPART_FORM_DATA_TYPE)
                     .post(String.class, form);
 
             try {
-                if (!isCallSuccessful(xmlResponse)) {
-                    throw new DeploymentException(getMessage(xmlResponse));
+                if (!isCallSuccessful(textResponse)) {
+                    throw new DeploymentException("Deployment failed, Tomcat says: "+textResponse);
                 }
-            } catch (XPathExpressionException e) {
-                throw new DeploymentException("Error finding exit code or message", e);
+            } catch (Exception e) {
+                throw new DeploymentException("Error parsing Tomcat's response.", e);
             }
 
             // Call has been successful, now we need another call to get the list of servlets
-            final String subComponentsResponse = prepareClient(LIST_SUB_COMPONENTS + this.deploymentName).get(String.class);
+            final String subComponentsResponse = prepareClient(URL_PATH_LIST + name).get(String.class);
 
             return this.parseForProtocolMetaData(subComponentsResponse);
         } catch (XPathExpressionException e) {
@@ -157,131 +181,85 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
         }
     }
 
-   public void undeploy(final Archive<?> archive) throws DeploymentException
-   {
-      StandardContext standardContext = standardContextProducer.get();
-      if (standardContext != null)
-      {
-         standardHost.removeChild(standardContext);
-         if (standardContext.getUnpackWAR())
-         {
-            deleteUnpackedWAR(standardContext);
-         }
-      }
-   }
+    @Override
+    public void undeploy(final Archive<?> archive) throws DeploymentException
+    {
+    }
 
-   private void undeploy(String name) throws DeploymentException
-   {
-      Container child = standardHost.findChild(name);
-      if (child != null)
-      {
-         standardHost.removeChild(child);
-      }
-   }
+  
+    /**
+     * Basic REST call preparation
+     *
+     * @return the resource builder to execute
+     */
+    private WebResource.Builder prepareClient() {
+        return prepareClient("");
+    }
 
-   private void removeFailedUnDeployments() throws IOException
-   {
-      List<String> remainingDeployments = new ArrayList<String>();
-      for (String name : failedUndeployments)
-      {
-         try
-         {
-            undeploy(name);
-         }
-         catch (Exception e)
-         {
-            IOException ioe = new IOException();
-            ioe.initCause(e);
-            throw ioe;
-         }
-      }
-      if (remainingDeployments.size() > 0)
-      {
-         log.severe("Failed to undeploy these artifacts: " + remainingDeployments);
-      }
-      failedUndeployments.clear();
-   }
+    /**
+     * Basic REST call preparation, with the additional resource url appended
+     *
+     * @param additionalResourceUrl url portion past the base to use
+     * @return the resource builder to execute
+     */
+    private WebResource.Builder prepareClient(String additionalResourceUrl) {
+        final Client client = Client.create();
+        return client.resource( this.adminBaseUrl + additionalResourceUrl ).accept(MediaType.TEXT_PLAIN_TYPE);
+    }
+    
+    
+    
+    /**
+     * Looks for a successful exit code given the response of the call
+     *
+     * @param textResponse XML response from the REST call
+     * @return true if call was successful, false otherwise
+     * @throws XPathExpressionException if the xpath query could not be executed
+     */
+    private boolean isCallSuccessful(String textResponse) {
+        // OK - Deployed application at context path /debug
+        // OK - Undeployed application at context path /debug
+        return textResponse.contains("OK");
+    }
 
-   protected void startTomcatRemote() throws UnknownHostException, org.apache.catalina.LifecycleException
-   {
-      // creating the tomcat embedded == service tag in server.xml
-      embedded = new Embedded();
-      embedded.setName(serverName);
-      // TODO this needs to be a lot more robust
-      String tomcatHome = conf.getTomcatHome();
-      File tomcatHomeFile = null;
-      if (tomcatHome != null)
-      {
-         if (tomcatHome.startsWith(ENV_VAR))
-         {
-            String sysVar = tomcatHome.substring(ENV_VAR.length(), tomcatHome.length() - 1);
-            tomcatHome = System.getProperty(sysVar);
-            if (tomcatHome != null && tomcatHome.length() > 0 && new File(tomcatHome).isAbsolute())
-            {
-               tomcatHomeFile = new File(tomcatHome);
-               log.info("Using tomcat home from environment variable: " + tomcatHome);
-            }
-         }
-         else
-         {
-            tomcatHomeFile = new File(tomcatHome);
-         }
-      }
-
-      if (tomcatHomeFile == null)
-      {
-         tomcatHomeFile = new File(System.getProperty(TMPDIR_SYS_PROP), "tomcat-embedded-6");
-      }
-
-      tomcatHomeFile.mkdirs();
-      embedded.setCatalinaBase(tomcatHomeFile.getAbsolutePath());
-      embedded.setCatalinaHome(tomcatHomeFile.getAbsolutePath());
-     
-      // creates the engine, i.e., <engine> element in server.xml
-      engine = embedded.createEngine();
-      engine.setName(serverName);
-      engine.setDefaultHost(bindAddress);
-      engine.setService(embedded);
-      embedded.setContainer(engine);
-      embedded.addEngine(engine);
-      
-      // creates the host, i.e., <host> element in server.xml
-      File appBaseFile = new File(tomcatHomeFile, conf.getAppBase());
-      appBaseFile.mkdirs();
-      standardHost = embedded.createHost(bindAddress, appBaseFile.getAbsolutePath());
-      if (conf.getTomcatWorkDir() != null)
-      {
-         ((StandardHost) standardHost).setWorkDir(conf.getTomcatWorkDir());
-      }
-      ((StandardHost) standardHost).setUnpackWARs(conf.isUnpackArchive());
-      engine.addChild(standardHost);
-      
-      // creates an http connector, i.e., <connector> element in server.xml
-      Connector connector = embedded.createConnector(InetAddress.getByName(bindAddress), bindPort, false);
-      embedded.addConnector(connector);
-      connector.setContainer(engine);
-      
-      // starts embedded tomcat
-      embedded.init();
-      embedded.start();
-      wasStarted = true;
-   }
-
-   protected void stopTomcatEmbedded() throws LifecycleException, org.apache.catalina.LifecycleException
-   {
-      embedded.stop();
-   }
+    
 
    /**
-    * Make sure an the unpacked WAR is not left behind
-    * you would think Tomcat would cleanup an unpacked WAR, but it doesn't
-    */
-   protected void deleteUnpackedWAR(StandardContext standardContext)
-   {
-      File unpackDir = new File(standardHost.getAppBase(), standardContext.getPath().substring(1));
-      if (unpackDir.exists())
-      {
-         ExpandWar.deleteDir(unpackDir);
-      }
-   }
-}
+     * Parses output of /manager/list
+      OK - Listed applications for virtual host localhost
+      /:running:0:ROOT
+      /manager:running:1:manager
+      /docs:running:0:docs
+      /examples:running:0:examples
+      /host-manager:running:0:host-manager
+   */
+    private ProtocolMetaData parseForProtocolMetaData(String textResponse) throws XPathExpressionException {
+        final ProtocolMetaData protocolMetaData = new ProtocolMetaData();
+        final HTTPContext httpContext = new HTTPContext(this.conf.getHost(), this.conf.getHttpPort());
+        
+        //BufferedInputStream bis = new BufferedInputStream( new ByteArrayInputStream( textResponse.getBytes()) );
+        String[] lines = textResponse.split("\\n");
+
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i];
+            String[] parts = line.split(":");
+            if( parts.length < 4 ) continue;
+            httpContext.add(new Servlet(parts[0], parts[3]));
+        }
+
+        protocolMetaData.addContext(httpContext);
+        return protocolMetaData;
+    }
+
+    
+   
+
+    protected void startTomcatRemote() throws UnknownHostException, org.apache.catalina.LifecycleException
+    {
+    }
+
+    protected void stopTomcatRemote() throws LifecycleException, org.apache.catalina.LifecycleException
+    {
+    }
+
+}// class

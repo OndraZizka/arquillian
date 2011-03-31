@@ -49,83 +49,81 @@ public class TomcatRemoteConfiguration implements ContainerConfiguration
    private boolean unpackArchive = false;
    
    
-
-   public TomcatRemoteConfiguration( URL jmxUrl ) throws ConfigurationException {
-      if( ! JMX_PROTOCOL.equals(jmxUrl.getProtocol() ) )
-         throw new ConfigurationException( "URL's protocol is not '"+JMX_PROTOCOL+"': "+jmxUrl.toString() );
-      this.jmxUrl = jmxUrl;
-      this.host = jmxUrl.getHost();
-      this.jmxPort = jmxUrl.getPort();
-   }
-
-    public TomcatRemoteConfiguration( String host, int jmxPort ) throws ConfigurationException {
-        if(jmxPort > MAX_PORT)
-            throw new ConfigurationException("JMX port larger than "+MAX_PORT+": "+jmxPort);
-        this.host = host;
-        this.jmxPort = jmxPort;
-        
-         try {
-            this.jmxUrl = new URL("service:jmx:rmi:///jndi/rmi://"+host+":"+jmxPort+"/jmxrmi");
-         } catch (MalformedURLException ex) {
-            throw new ConfigurationException( ex.getMessage(), ex );
-         }
+    /* (non-Javadoc)
+     * @see org.jboss.arquillian.spi.client.container.ContainerConfiguration#validate()
+     */
+    @Override
+    public void validate() throws ConfigurationException {
     }
 
     
     
     
+    public String getPass() {
+        return pass;
+    }
+
+    public void setPass(String pass) {
+        this.pass = pass;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+   
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHttpPort(int httpPort) {
+        this.httpPort = httpPort;
+    }
+
+    public void setHost(String host) {
+        try {
+            this.jmxUrl = new URL("service:jmx:rmi:///jndi/rmi://"+host+":"+this.jmxPort+"/jmxrmi");
+        } catch (MalformedURLException ex) {
+            throw new ConfigurationException( ex.getMessage(), ex );
+        }
+        this.host = host;
+    }
+
     
-    
-    
-   public String getPass() {
-      return pass;
-   }
+    public int getJmxPort() {
+        return jmxPort;
+    }
 
-   public void setPass(String pass) {
-      this.pass = pass;
-   }
+    public void setJmxPort(int jmxPort) {
+        if(jmxPort > MAX_PORT)
+            throw new ConfigurationException("JMX port larger than "+MAX_PORT+": "+jmxPort);
+        
+        try {
+            this.jmxUrl = new URL("service:jmx:rmi:///jndi/rmi://"+this.host+":"+jmxPort+"/jmxrmi");
+        } catch (MalformedURLException ex) {
+            throw new ConfigurationException( ex.getMessage(), ex );
+        }
+        this.jmxPort = jmxPort;
+    }
 
-   public String getUser() {
-      return user;
-   }
+    public URL getJmxUrl() {
+        return jmxUrl;
+    }
 
-   public void setUser(String user) {
-      this.user = user;
-   }
-    
-    
-   
-   
-   
-    
-   
+    public void setJmxUrl(URL jmxUrl) {
+      if( ! JMX_PROTOCOL.equals(jmxUrl.getProtocol() ) )
+         throw new ConfigurationException( "URL's protocol is not '"+JMX_PROTOCOL+"': "+jmxUrl.toString() );
+      this.jmxUrl = jmxUrl;
+      this.host = jmxUrl.getHost();
+      this.jmxPort = jmxUrl.getPort();
+    }
 
-   /* (non-Javadoc)
-    * @see org.jboss.arquillian.spi.client.container.ContainerConfiguration#validate()
-    */
-   @Override
-   public void validate() throws ConfigurationException
-   {
-   }
-   
-   
-   
 
-   
-   // JMX-related properties left unchangeable for now.
-
-   public String getHost() {
-      return host;
-   }
-
-   public int getJmxPort() {
-      return jmxPort;
-   }
-
-   public URL getJmxUrl() {
-      return jmxUrl;
-   }
-   
    
    
    

@@ -1,1 +1,1 @@
-org.jboss.arquillian.container.tomcat.embedded_6.TomcatEmbeddedDeploymentAppender
+org.jboss.arquillian.container.tomcat.remote_6.TomcatRemoteEmbeddedDeploymentAppender

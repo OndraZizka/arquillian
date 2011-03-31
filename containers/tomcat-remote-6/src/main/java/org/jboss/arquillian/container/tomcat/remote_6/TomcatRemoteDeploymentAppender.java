@@ -31,7 +31,7 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
  * @author Dan Allen
  * @version $Revision: $
  */
-public class TomcatEmbeddedDeploymentAppender implements AuxiliaryArchiveAppender
+public class TomcatRemoteDeploymentAppender implements AuxiliaryArchiveAppender
 {
    public Archive<?> createAuxiliaryArchive()
    {
@@ -43,7 +43,8 @@ public class TomcatEmbeddedDeploymentAppender implements AuxiliaryArchiveAppende
             .addAsServiceProvider(
                   TestEnricher.class,
                   CDIInjectionEnricher.class,
-                  ResourceInjectionEnricher.class);
+                  ResourceInjectionEnricher.class)
+            ;
       return archive;
    }
 }

@@ -5,9 +5,9 @@
 	
        <container qualifier="tomcat" default="true">
            <configuration>
-               <property name="tomcatHome">target/tomcat-embedded-6</property>
+               <property name="tomcatHome">target/tomcat-remote-6</property>
                <property name="workDir">work</property>
-               <property name="bindHttpPort">8888</property>
+               <property name="bindHttpPort">8080</property>
                <property name="unpackArchive">true</property>
            </configuration>
        </container>
