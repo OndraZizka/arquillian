@@ -25,13 +25,11 @@ import javax.xml.xpath.XPathExpressionException;
 
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.api.client.WebResource.Builder;
 import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.multipart.FormDataBodyPart;
 import com.sun.jersey.multipart.FormDataMultiPart;
 import com.sun.jersey.multipart.file.FileDataBodyPart;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.StringReader;
 import javax.ws.rs.core.MediaType;
 
 import org.jboss.arquillian.spi.client.container.DeployableContainer;
@@ -152,20 +150,19 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             final File archiveFile = new File(new File(System.getProperty("java.io.tmpdir")), archiveName);
             archive.as(ZipExporter.class).exportZip(archiveFile, true);
 
-            // Build up the POST form to send to Glassfish
-            final FormDataMultiPart form = new FormDataMultiPart();
-            form.getBodyParts().add(new FormDataBodyPart("update", "true"));
-            form.getBodyParts().add(new FileDataBodyPart("file", archiveFile));
-            
+            // Split the suffix to get deployment.
             String name = archiveName.substring(0, archiveName.lastIndexOf("."));
             this.deploymentName = name;
-            // Context path.
-            form.field("path", "/"+name, MediaType.TEXT_PLAIN_TYPE);
-            //form.field("name", name, MediaType.TEXT_PLAIN_TYPE);
-            final String textResponse = prepareClient(URL_PATH_DEPLOY)
-                    .type(MediaType.MULTIPART_FORM_DATA_TYPE)
-                    //.post(String.class, form);
-                    .put(String.class, form);
+
+            Builder builder = prepareClientWebResource(URL_PATH_DEPLOY)
+                    // Context path.
+                    .queryParam("path", "/"+name)
+                    .accept(MediaType.TEXT_PLAIN_TYPE)
+                    .type(MediaType.APPLICATION_OCTET_STREAM_TYPE);
+            
+            
+            final String textResponse = builder.put(String.class, archiveFile);
+                    
 
             try {
                 if (!isCallSuccessful(textResponse)) {
@@ -176,7 +173,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             }
 
             // Call has been successful, now we need another call to get the list of servlets
-            final String subComponentsResponse = prepareClient(URL_PATH_LIST + name).get(String.class);
+            final String subComponentsResponse = prepareClientWebResource(URL_PATH_LIST + name).get(String.class);
 
             return this.parseForProtocolMetaData(subComponentsResponse);
         } catch (XPathExpressionException e) {
@@ -195,8 +192,8 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
      *
      * @return the resource builder to execute
      */
-    private WebResource.Builder prepareClient() {
-        return prepareClient("");
+    private WebResource prepareClient() {
+        return prepareClientWebResource("");
     }
 
     /**
@@ -205,11 +202,13 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
      * @param additionalResourceUrl url portion past the base to use
      * @return the resource builder to execute
      */
-    private WebResource.Builder prepareClient(String additionalResourceUrl) {
-        final Client client = Client.create();
-        // Auth
-        client.addFilter( new HTTPBasicAuthFilter( this.conf.getUser(), this.conf.getPass()) );
-        return client.resource( this.adminBaseUrl + additionalResourceUrl ).accept(MediaType.TEXT_PLAIN_TYPE);
+    private WebResource prepareClientWebResource(String additionalResourceUrl) {
+            // HTTP Client
+            final Client client = Client.create();
+            // Auth
+            client.addFilter( new HTTPBasicAuthFilter( this.conf.getUser(), this.conf.getPass()) );
+            WebResource resource = client.resource( this.adminBaseUrl + URL_PATH_DEPLOY );
+            return resource;
     }
     
     
