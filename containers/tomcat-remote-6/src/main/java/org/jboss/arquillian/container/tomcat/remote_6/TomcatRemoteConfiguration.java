@@ -16,7 +16,8 @@
  */
 package org.jboss.arquillian.container.tomcat.remote_6;
 
-import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import org.jboss.arquillian.spi.ConfigurationException;
 import org.jboss.arquillian.spi.client.container.ContainerConfiguration;
@@ -42,7 +43,7 @@ public class TomcatRemoteConfiguration implements ContainerConfiguration
       
    private int jmxPort = 8089;
    
-   private URL jmxUrl;
+   private URI jmxUrl;
 
    private String serverName = "arquillian-tomcat-remote-6";
    
@@ -54,6 +55,14 @@ public class TomcatRemoteConfiguration implements ContainerConfiguration
      */
     @Override
     public void validate() throws ConfigurationException {
+        if(this.jmxPort > MAX_PORT)
+            throw new ConfigurationException("JMX port larger than "+MAX_PORT+": "+this.jmxPort);
+        
+        try {
+            this.jmxUrl = new URI("service:jmx:rmi:///jndi/rmi://"+this.host+":"+this.jmxPort+"/jmxrmi");
+        } catch (URISyntaxException ex) {
+            throw new ConfigurationException( ex.getMessage(), ex );
+        }
     }
 
     
@@ -86,11 +95,6 @@ public class TomcatRemoteConfiguration implements ContainerConfiguration
     }
 
     public void setHost(String host) {
-        try {
-            this.jmxUrl = new URL("service:jmx:rmi:///jndi/rmi://"+host+":"+this.jmxPort+"/jmxrmi");
-        } catch (MalformedURLException ex) {
-            throw new ConfigurationException( ex.getMessage(), ex );
-        }
         this.host = host;
     }
 
@@ -100,28 +104,20 @@ public class TomcatRemoteConfiguration implements ContainerConfiguration
     }
 
     public void setJmxPort(int jmxPort) {
-        if(jmxPort > MAX_PORT)
-            throw new ConfigurationException("JMX port larger than "+MAX_PORT+": "+jmxPort);
-        
-        try {
-            this.jmxUrl = new URL("service:jmx:rmi:///jndi/rmi://"+this.host+":"+jmxPort+"/jmxrmi");
-        } catch (MalformedURLException ex) {
-            throw new ConfigurationException( ex.getMessage(), ex );
-        }
         this.jmxPort = jmxPort;
     }
 
-    public URL getJmxUrl() {
+    public URI getJmxUrl() {
         return jmxUrl;
     }
 
-    public void setJmxUrl(URL jmxUrl) {
+    /*public void setJmxUrl(URL jmxUrl) {
       if( ! JMX_PROTOCOL.equals(jmxUrl.getProtocol() ) )
          throw new ConfigurationException( "URL's protocol is not '"+JMX_PROTOCOL+"': "+jmxUrl.toString() );
       this.jmxUrl = jmxUrl;
       this.host = jmxUrl.getHost();
       this.jmxPort = jmxUrl.getPort();
-    }
+    }*/
 
 
    

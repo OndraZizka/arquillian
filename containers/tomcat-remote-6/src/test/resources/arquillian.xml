@@ -5,10 +5,8 @@
 	
        <container qualifier="tomcat" default="true">
            <configuration>
-               <property name="tomcatHome">target/tomcat-remote-6</property>
-               <property name="workDir">work</property>
-               <property name="bindHttpPort">8080</property>
-               <property name="unpackArchive">true</property>
+               <property name="jmxPort">8089</property>
+               <property name="httpPort">8080</property>
                <property name="user">admin</property>
                <property name="pass">admin</property>
            </configuration>

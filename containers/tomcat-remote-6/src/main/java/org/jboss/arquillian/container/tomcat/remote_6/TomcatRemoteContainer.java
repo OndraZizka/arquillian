@@ -159,11 +159,13 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             
             String name = archiveName.substring(0, archiveName.lastIndexOf("."));
             this.deploymentName = name;
-            form.field("context", name, MediaType.TEXT_PLAIN_TYPE);
+            // Context path.
+            form.field("path", "/"+name, MediaType.TEXT_PLAIN_TYPE);
             //form.field("name", name, MediaType.TEXT_PLAIN_TYPE);
             final String textResponse = prepareClient(URL_PATH_DEPLOY)
                     .type(MediaType.MULTIPART_FORM_DATA_TYPE)
-                    .post(String.class, form);
+                    //.post(String.class, form);
+                    .put(String.class, form);
 
             try {
                 if (!isCallSuccessful(textResponse)) {
