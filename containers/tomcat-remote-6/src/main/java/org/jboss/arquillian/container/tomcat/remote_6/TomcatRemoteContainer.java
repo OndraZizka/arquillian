@@ -17,10 +17,19 @@
 package org.jboss.arquillian.container.tomcat.remote_6;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
+import javax.management.BadAttributeValueExpException;
+import javax.management.BadBinaryOpValueExpException;
+import javax.management.BadStringOperationException;
+import javax.management.InvalidApplicationException;
+import javax.management.MBeanServer;
+import javax.management.ObjectInstance;
 import javax.xml.xpath.XPathExpressionException;
 
 import com.sun.jersey.api.client.Client;
@@ -30,6 +39,13 @@ import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.multipart.FormDataBodyPart;
 import com.sun.jersey.multipart.FormDataMultiPart;
 import com.sun.jersey.multipart.file.FileDataBodyPart;
+import java.util.Hashtable;
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+import javax.management.QueryExp;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
 import javax.ws.rs.core.MediaType;
 
 import org.jboss.arquillian.spi.client.container.DeployableContainer;
@@ -151,7 +167,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             archive.as(ZipExporter.class).exportZip(archiveFile, true);
 
             // Split the suffix to get deployment.
-            String name = archiveName.substring(0, archiveName.lastIndexOf("."));
+            final String name = archiveName.substring(0, archiveName.lastIndexOf("."));
             this.deploymentName = name;
 
             Builder builder = prepareClientWebResource(URL_PATH_DEPLOY)
@@ -161,30 +177,48 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
                     .type(MediaType.APPLICATION_OCTET_STREAM_TYPE);
             
             
-            final String textResponse = builder.put(String.class, archiveFile);
+            final String reply = builder.put(String.class, archiveFile);
                     
 
             try {
-                if (!isCallSuccessful(textResponse)) {
-                    throw new DeploymentException("Deployment failed, Tomcat says: "+textResponse);
+                if (!isCallSuccessful(reply)) {
+                    throw new DeploymentException("Deploy failed, Tomcat says: "+reply);
                 }
             } catch (Exception e) {
-                throw new DeploymentException("Error parsing Tomcat's response.", e);
+                throw new DeploymentException("Error parsing Tomcat's deploy response.", e);
             }
 
             // Call has been successful, now we need another call to get the list of servlets
-            final String subComponentsResponse = prepareClientWebResource(URL_PATH_LIST + name).get(String.class);
-
+            final String subComponentsResponse = prepareClientWebResource(URL_PATH_LIST).get(String.class);
             return this.parseForProtocolMetaData(subComponentsResponse);
-        } catch (XPathExpressionException e) {
+        }
+        catch (XPathExpressionException e) {
             throw new DeploymentException("Error in creating / deploying archive", e);
         }
-    }
+    }// deploy()
 
     @Override
     public void undeploy(final Archive<?> archive) throws DeploymentException
     {
-    }
+        // Split the suffix to get deployment.
+        final String archiveName = archive.getName();
+        final String name = archiveName.substring(0, archiveName.lastIndexOf("."));
+        //this.deploymentName = name;
+        
+        String reply = prepareClientWebResource(URL_PATH_UNDEPLOY)
+             // Context path.
+             .queryParam("path", "/"+name)
+             .accept(MediaType.TEXT_PLAIN_TYPE)
+             .get( String.class );
+                
+        try {
+            if (!isCallSuccessful(reply)) {
+                throw new DeploymentException("Undeploy failed, Tomcat says: "+reply);
+            }
+        } catch (Exception e) {
+            throw new DeploymentException("Error parsing Tomcat's undeploy response.", e);
+        }
+    }// undeploy()
 
   
     /**
@@ -207,7 +241,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             final Client client = Client.create();
             // Auth
             client.addFilter( new HTTPBasicAuthFilter( this.conf.getUser(), this.conf.getPass()) );
-            WebResource resource = client.resource( this.adminBaseUrl + URL_PATH_DEPLOY );
+            WebResource resource = client.resource( this.adminBaseUrl + additionalResourceUrl );
             return resource;
     }
     
@@ -236,6 +270,8 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
       /docs:running:0:docs
       /examples:running:0:examples
       /host-manager:running:0:host-manager
+     * 
+     * @deprecated  /manager/list doesn't provide Serlvets and Mappings info -> we need JMX .
    */
     private ProtocolMetaData parseForProtocolMetaData(String textResponse) throws XPathExpressionException {
         final ProtocolMetaData protocolMetaData = new ProtocolMetaData();
@@ -248,7 +284,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             String line = lines[i];
             String[] parts = line.split(":");
             if( parts.length < 4 ) continue;
-            httpContext.add(new Servlet(parts[0], parts[3]));
+            httpContext.add(new Servlet(parts[3], parts[0]));
         }
 
         protocolMetaData.addContext(httpContext);
@@ -265,5 +301,105 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
     protected void stopTomcatRemote() throws LifecycleException, org.apache.catalina.LifecycleException
     {
     }
+    
+    
+    
+    /**
+     * Retrieves given context's servlets information through JMX.
+     * 
+     * How it works:
+     *   1)  Get the WebModule, identified as //{host}/{contextPath}
+     *   2)  Get it's path attrib
+     *   3)  Get it's servlets attrib, which is String[] which actually represents ObjectName[]
+     *   4)  Get each of these Servlets and their mappings
+     *   5)  For each of {mapping},  do HTTPContext#add( new Servlet( "{mapping}", "//{host}/{contextPath}" ) );
+     * 
+        // WebModule -> ... -> Attributes 
+        //     -> path == /manager
+        //     -> servlets == String[]
+        //           -> Catalina:j2eeType=Servlet,name=<name>,WebModule=<...>,J2EEApplication=none,J2EEServer=none
+     * 
+     * 
+     * @param context
+     * @return
+     * @throws DeploymentException 
+     */
+    protected ProtocolMetaData retrieveContextServletInfo( String context ) throws DeploymentException
+    {
+        try{
+            final ProtocolMetaData protocolMetaData = new ProtocolMetaData();
+            final HTTPContext httpContext = new HTTPContext(this.conf.getHost(), this.conf.getHttpPort());
+        
+            // Create an RMI connector client and connect it to the RMI connector server
+            // "service:jmx:rmi:///jndi/rmi://localhost:9999/server"
+            JMXServiceURL url = new JMXServiceURL( null, this.conf.getHost(), this.conf.getJmxPort() );
+            JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
+
+            MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
+
+            /// Debug
+            String domains[] = mbsc.getDomains();
+            for (int i = 0; i < domains.length; i++) {
+                echo("\tDomain[" + i + "] = " + domains[i]);
+            }
+            
+            if( false ){
+                ///----- Not used - we can get servlets directly.
+                // "Catalina:j2eeType=WebModule,name=//localhost/examples,J2EEApplication=none,J2EEServer=none"
+                Hashtable<String, String> params = new Hashtable<String, String>();
+                params.put("j2eeType", "WebModule");
+                params.put("name", "//localhost" + context);
+                //mbsc.getMBeanInfo(ObjectName.getInstance("Catalina", params));
+                ObjectName contextON = ObjectName.getInstance("Catalina", params);
+                Set<ObjectInstance> contextMBeans = mbsc.queryMBeans( contextON,  null);
+                if( contextMBeans.size() == 0 )
+                    throw new DeploymentException("Context MBean not found: " + contextON);
+                if( contextMBeans.size() > 1 )
+                    log.warning( "More than one MBean found (taking first): " + contextON.toString() );
+                ObjectInstance contextMBean = contextMBeans.iterator().next();
+                //BaseModelMBean
+
+                ObjectName[] children = (ObjectName[]) mbsc.getAttribute( contextMBean.getObjectName(), "children" );
+                for (int i = 0; i < children.length; i++) {
+                    ObjectName objectName = children[i];
+                    echo( objectName.toString() );
+                }
+                ///-----
+            }
+            
+            
+            
+            // For each servlet MBean of the given context...
+            // Catalina:j2eeType=Servlet,name=Manager,WebModule=//localhost/manager,J2EEApplication=none,J2EEServer=none
+            String contextFullPath = "//localhost" + context;
+            ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,WebModule=" + contextFullPath + ",*");
+            Set<ObjectInstance> servletMBeans = mbsc.queryMBeans( servletON,  null);
+            if( servletMBeans.size() == 0 )
+                throw new DeploymentException("No Servlet MBeans found for: " + servletON);
+            
+            // Add each servlet to the HTTPContext
+            for( ObjectInstance oi : servletMBeans ) {
+                String servletName = oi.getObjectName().getKeyProperty("name");
+                httpContext.add( new Servlet( servletName, contextFullPath) );
+                
+                /*String[] mappings = (String[]) mbsc.invoke(oi.getObjectName(), "findMappings", new Object[0], new String[0]);
+                for (String mapping : mappings) {
+                    httpContext.add( new Servlet( mapping, contextFullPath) );
+                }*/
+            }
+            
+            protocolMetaData.addContext(httpContext);
+            return protocolMetaData;
+        }
+        catch( Exception ex ){
+            throw new DeploymentException("Error listing context's '"+context+"' servlets and mappings: "+ex.toString(), ex);
+        }
+
+    }
+
+    private void echo(String string) {
+        System.out.println(string);
+    }
+    
 
 }// class

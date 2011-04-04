@@ -45,7 +45,7 @@ import org.junit.runner.RunWith;
 @RunWith(Arquillian.class)
 public class TomcatRemoteInContainerTestCase
 {
-    private static final String HELLO_WORLD_URL = "http://localhost:8888/test2/Test";
+    private static final String HELLO_WORLD_URL = "http://localhost:8080/test2/Test";
 
     // -------------------------------------------------------------------------------------||
     // Class Members -----------------------------------------------------------------------||
@@ -73,7 +73,8 @@ public class TomcatRemoteInContainerTestCase
                         .artifact("org.jboss.weld.servlet:weld-servlet:1.0.1-Final").resolveAs(GenericArchive.class))
          .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
          .addAsManifestResource("in-container-context.xml", "context.xml")
-         .setWebXML("in-container-web.xml");
+         .setWebXML("in-container-web.xml")
+         ;
     }
 
     // -------------------------------------------------------------------------------------||
