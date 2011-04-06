@@ -17,18 +17,11 @@
 package org.jboss.arquillian.container.tomcat.remote_6;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
-import javax.management.BadAttributeValueExpException;
-import javax.management.BadBinaryOpValueExpException;
-import javax.management.BadStringOperationException;
-import javax.management.InvalidApplicationException;
-import javax.management.MBeanServer;
 import javax.management.ObjectInstance;
 import javax.xml.xpath.XPathExpressionException;
 
@@ -36,13 +29,9 @@ import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.client.WebResource.Builder;
 import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
-import com.sun.jersey.multipart.FormDataBodyPart;
-import com.sun.jersey.multipart.FormDataMultiPart;
-import com.sun.jersey.multipart.file.FileDataBodyPart;
 import java.util.Hashtable;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
-import javax.management.QueryExp;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;

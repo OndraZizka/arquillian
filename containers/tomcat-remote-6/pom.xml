@@ -44,12 +44,13 @@
         <artifactId>jersey-bundle</artifactId>
         <version>${jersey.version}</version>
       </dependency>
-
+      <!--
       <dependency>
          <groupId>com.sun.jersey.contribs</groupId>
          <artifactId>jersey-multipart</artifactId>
          <version>${jersey.version}</version>
       </dependency>
+      -->
       
       <dependency>
          <groupId>commons-lang</groupId>
@@ -90,14 +91,14 @@
          <version>${project.version}</version>
       </dependency>
     
+      
+
       <dependency>
          <groupId>org.apache.tomcat</groupId>
          <artifactId>catalina</artifactId>
          <version>${version.org.apache.tomcat}</version>
          <scope>provided</scope>
-      </dependency>
-
-      <dependency>
+      </dependency><dependency>
          <groupId>org.apache.tomcat</groupId>
          <artifactId>coyote</artifactId>
          <version>${version.org.apache.tomcat}</version>
@@ -136,6 +137,23 @@
         <artifactId>shrinkwrap-resolver-impl-maven</artifactId>
       </dependency>
       
+      
+      <!-- javax.enterprise.inject.spi.BeanManager -->
+      <!-- http://community.jboss.org/message/531881
+      <dependency>
+         <groupId>javax</groupId>
+         <artifactId>javaee-web-api</artifactId>
+         <version>6.0</version>
+      </dependency>
+      -->
+      
+      <!-- org.jboss.weld.resources.ManagerObjectFactory -->
+      <dependency>
+         <groupId>org.jboss.weld.servlet</groupId>
+         <artifactId>weld-servlet</artifactId>
+         <version>1.1.0.Final</version>
+         <type>jar</type>
+      </dependency>
       
    </dependencies>
 

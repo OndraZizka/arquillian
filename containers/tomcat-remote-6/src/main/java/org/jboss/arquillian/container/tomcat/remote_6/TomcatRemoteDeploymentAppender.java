@@ -37,13 +37,18 @@ public class TomcatRemoteDeploymentAppender implements AuxiliaryArchiveAppender
    {
       JavaArchive archive = ShrinkWrap.create(JavaArchive.class, "arquillian-tomcat-testenrichers.jar")
             .addPackages(
-                  false,
-                  CDIInjectionEnricher.class.getPackage(),
-                  ResourceInjectionEnricher.class.getPackage())
+                true,
+                CDIInjectionEnricher.class.getPackage(),
+                ResourceInjectionEnricher.class.getPackage(),
+                // CDI support - see in-container-context.xml
+                javax.enterprise.inject.spi.BeanManager.class.getPackage(),
+                org.jboss.weld.resources.ManagerObjectFactory.class.getPackage()
+                // TODO: ArquillianTestServlet
+            )
             .addAsServiceProvider(
-                  TestEnricher.class,
-                  CDIInjectionEnricher.class,
-                  ResourceInjectionEnricher.class)
+                TestEnricher.class,
+                CDIInjectionEnricher.class,
+                ResourceInjectionEnricher.class)
             ;
       return archive;
    }
