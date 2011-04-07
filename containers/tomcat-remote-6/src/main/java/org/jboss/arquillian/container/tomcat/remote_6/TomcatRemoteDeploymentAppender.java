@@ -42,11 +42,11 @@ public class TomcatRemoteDeploymentAppender implements AuxiliaryArchiveAppender
                 ResourceInjectionEnricher.class.getPackage(),
                 // CDI support - see in-container-context.xml
                 javax.enterprise.inject.spi.BeanManager.class.getPackage(),
-                org.jboss.weld.resources.ManagerObjectFactory.class.getPackage(),
+                org.jboss.weld.resources.ManagerObjectFactory.class.getPackage()
                 // TODO: ArquillianServletRunner not found.
                 //org.jboss.arquillian.protocol.servlet.v_3.
                 //org.jboss.arquillian.protocol.servlet_3.ServletTestRunner
-                org.jboss.arquillian.protocol.servlet.ServletUtil.class.getPackage()
+                //org.jboss.arquillian.protocol.servlet.ServletUtil.class.getPackage()
             )
             /*
             .addPackage(org.jboss.arquillian.protocol.servlet.runner.SecurityActions.class.getPackage())

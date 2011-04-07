@@ -346,7 +346,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
                 // "Catalina:j2eeType=WebModule,name=//localhost/examples,J2EEApplication=none,J2EEServer=none"
                 Hashtable<String, String> params = new Hashtable<String, String>();
                 params.put("j2eeType", "WebModule");
-                params.put("name", "//localhost" + context);
+                params.put("name", "//localhost/" + context);
                 //mbsc.getMBeanInfo(ObjectName.getInstance("Catalina", params));
                 ObjectName contextON = ObjectName.getInstance("Catalina", params);
                 Set<ObjectInstance> contextMBeans = mbsc.queryMBeans( contextON,  null);
@@ -369,8 +369,9 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             
             // For each servlet MBean of the given context...
             // Catalina:j2eeType=Servlet,name=Manager,WebModule=//localhost/manager,J2EEApplication=none,J2EEServer=none
-            String contextFullPath = "//localhost" + context;
-            ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,WebModule=" + contextFullPath + ",*");
+            String jmxWebModuleName = "//localhost/" + context;
+            ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,WebModule=" + jmxWebModuleName + ",*");
+            //ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,*"); /// DEBUG - list all servlets of all modules (contexts).
             Set<ObjectInstance> servletMBeans = mbsc.queryMBeans( servletON,  null);
             if( servletMBeans.size() == 0 )
                 throw new DeploymentException("No Servlet MBeans found for: " + servletON);
@@ -378,7 +379,8 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             // Add each servlet to the HTTPContext
             for( ObjectInstance oi : servletMBeans ) {
                 String servletName = oi.getObjectName().getKeyProperty("name");
-                httpContext.add( new Servlet( servletName, contextFullPath) );
+                log.fine("  Servlet: " + oi.toString());
+                httpContext.add( new Servlet( servletName, jmxWebModuleName) );
                 
                 /*String[] mappings = (String[]) mbsc.invoke(oi.getObjectName(), "findMappings", new Object[0], new String[0]);
                 for (String mapping : mappings) {
