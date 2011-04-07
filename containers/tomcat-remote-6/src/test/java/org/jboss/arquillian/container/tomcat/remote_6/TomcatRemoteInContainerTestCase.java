@@ -16,6 +16,7 @@
  */
 package org.jboss.arquillian.container.tomcat.remote_6;
 
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.logging.Logger;
@@ -28,6 +29,7 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.GenericArchive;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.DependencyResolvers;
 import org.jboss.shrinkwrap.resolver.api.maven.MavenDependencyResolver;
@@ -66,15 +68,17 @@ public class TomcatRemoteInContainerTestCase
     @Deployment
     public static WebArchive createTestArchive()
    {
-        return ShrinkWrap.create(WebArchive.class, "test2.war")
-         .addClasses(TestServlet.class, TestBean.class)
-            .addAsLibraries(
-                  DependencyResolvers.use(MavenDependencyResolver.class)
-                        .artifact("org.jboss.weld.servlet:weld-servlet:1.0.1-Final").resolveAs(GenericArchive.class))
-         .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
-         .addAsManifestResource("in-container-context.xml", "context.xml")
-         .setWebXML("in-container-web.xml")
-         ;
+        WebArchive war = ShrinkWrap.create(WebArchive.class, "test2.war")
+                                .addClasses(TestServlet.class, TestBean.class)
+                                   .addAsLibraries(
+                                         DependencyResolvers.use(MavenDependencyResolver.class)
+                                               .artifact("org.jboss.weld.servlet:weld-servlet:1.0.1-Final").resolveAs(GenericArchive.class))
+                                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
+                                .addAsManifestResource("in-container-context.xml", "context.xml")
+                                .setWebXML("in-container-web.xml");
+        /// DEBUG - see what's 
+        war.as(ZipExporter.class).exportTo( new File("/tmp/arq.zip"), true );
+        return war;
     }
 
     // -------------------------------------------------------------------------------------||

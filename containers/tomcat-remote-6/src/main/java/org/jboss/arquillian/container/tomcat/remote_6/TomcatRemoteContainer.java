@@ -170,19 +170,22 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
                     
 
             try {
-                if (!isCallSuccessful(reply)) {
+                if (!isCallSuccessful(reply))
                     throw new DeploymentException("Deploy failed, Tomcat says: "+reply);
-                }
-            } catch (Exception e) {
-                throw new DeploymentException("Error parsing Tomcat's deploy response.", e);
+            } catch (Exception ex) {
+                if( ex instanceof DeploymentException ) 
+                    throw ex;
+                else
+                    throw new DeploymentException("Error parsing Tomcat's deploy response.", ex);
             }
 
             // Call has been successful, now we need another call to get the list of servlets
             final String subComponentsResponse = prepareClientWebResource(URL_PATH_LIST).get(String.class);
-            return this.parseForProtocolMetaData(subComponentsResponse);
+            //return this.parseForProtocolMetaData(subComponentsResponse);
+            return this.retrieveContextServletInfo(name);
         }
-        catch (XPathExpressionException e) {
-            throw new DeploymentException("Error in creating / deploying archive", e);
+        catch( Exception ex ) {
+            throw new DeploymentException("Error in creating / deploying archive", ex);
         }
     }// deploy()
 
@@ -321,7 +324,9 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
         
             // Create an RMI connector client and connect it to the RMI connector server
             // "service:jmx:rmi:///jndi/rmi://localhost:9999/server"
-            JMXServiceURL url = new JMXServiceURL( null, this.conf.getHost(), this.conf.getJmxPort() );
+            //JMXServiceURL url = new JMXServiceURL( "service:jmx:rmi:///jndi/rmi:", this.conf.getHost(), this.conf.getJmxPort() );
+            String urlStr = String.format("service:jmx:rmi:///jndi/rmi://%s:%d", this.conf.getHost(), this.conf.getJmxPort());
+            JMXServiceURL url = new JMXServiceURL( urlStr );
             JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
 
             MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
