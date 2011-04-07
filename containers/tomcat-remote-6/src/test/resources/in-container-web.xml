@@ -28,9 +28,6 @@
 
    
    <servlet>
-      <!--
-      <servlet-class>org.jboss.arquillian.protocol.servlet_3.ServletTestRunner</servlet-class>
-      -->
        <servlet-name>ArquillianServletRunner</servlet-name>
        <servlet-class>org.jboss.arquillian.protocol.servlet.runner.ServletTestRunner</servlet-class>
    </servlet>
