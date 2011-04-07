@@ -5,7 +5,7 @@
 	
        <container qualifier="tomcat" default="true">
            <configuration>
-               <property name="jmxPort">8089</property>
+               <property name="jmxPort">9876</property>
                <property name="httpPort">8080</property>
                <property name="user">admin</property>
                <property name="pass">admin</property>

@@ -325,7 +325,11 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             // Create an RMI connector client and connect it to the RMI connector server
             // "service:jmx:rmi:///jndi/rmi://localhost:9999/server"
             //JMXServiceURL url = new JMXServiceURL( "service:jmx:rmi:///jndi/rmi:", this.conf.getHost(), this.conf.getJmxPort() );
-            String urlStr = String.format("service:jmx:rmi:///jndi/rmi://%s:%d", this.conf.getHost(), this.conf.getJmxPort());
+            //String urlStr = String.format("service:jmx:rmi:///jndi/rmi://%s:%d/%s", this.conf.getHost(), this.conf.getJmxPort(), context);
+            String urlStr = String.format("service:jmx:rmi:///jndi/rmi://%s:%d/jmxrmi", this.conf.getHost(), this.conf.getJmxPort());
+            //String urlStr = String.format("service:jmx:rmi://%s/jndi/rmi://%s:%d/jmxrmi", this.conf.getHost(), this.conf.getHost(), this.conf.getJmxPort());
+            
+            log.info("Connecting to JMX: " + urlStr);
             JMXServiceURL url = new JMXServiceURL( urlStr );
             JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
 
