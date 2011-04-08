@@ -29,6 +29,7 @@ import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.WebResource;
 import com.sun.jersey.api.client.WebResource.Builder;
 import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
+import java.io.IOException;
 import java.util.Hashtable;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -318,6 +319,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
      */
     protected ProtocolMetaData retrieveContextServletInfo( String context ) throws DeploymentException
     {
+        JMXConnector jmxc = null;
         try{
             final ProtocolMetaData protocolMetaData = new ProtocolMetaData();
             final HTTPContext httpContext = new HTTPContext(this.conf.getHost(), this.conf.getHttpPort());
@@ -331,7 +333,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             
             log.info("Connecting to JMX: " + urlStr);
             JMXServiceURL url = new JMXServiceURL( urlStr );
-            JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
+            jmxc = JMXConnectorFactory.connect(url, null);
 
             MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
 
@@ -398,6 +400,10 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
         }
         catch( Exception ex ){
             throw new DeploymentException("Error listing context's '"+context+"' servlets and mappings: "+ex.toString(), ex);
+        }
+        finally {
+            if( jmxc != null )
+                try { jmxc.close(); } catch (IOException ex){ /**/ }
         }
 
     }
