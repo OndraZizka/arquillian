@@ -68,11 +68,19 @@ public class TomcatRemoteInContainerTestCase
     @Deployment
     public static WebArchive createTestArchive()
    {
+        // Take the version from the package on classpath (it's MANIFEST.MF)
+        //String WELD_VERSION = org.jboss.weld.servlet.WeldListener.class.getPackage().getImplementationVersion(); // 20110114-1644
+        String WELD_VERSION = org.jboss.weld.servlet.WeldListener.class.getPackage().getSpecificationVersion();
+        if( WELD_VERSION == null )
+            WELD_VERSION = "1.1.0.Final";
+        log.fine("  Using weld-servlet version: " + WELD_VERSION);
+        
         WebArchive war = ShrinkWrap.create(WebArchive.class, "test2.war")
                                 .addClasses(TestServlet.class, TestBean.class)
                                    .addAsLibraries(
                                          DependencyResolvers.use(MavenDependencyResolver.class)
-                                               .artifact("org.jboss.weld.servlet:weld-servlet:1.0.1-Final").resolveAs(GenericArchive.class))
+                                                // TODO: Make the version being taken from package.
+                                               .artifact("org.jboss.weld.servlet:weld-servlet:" + WELD_VERSION).resolveAs(GenericArchive.class))
                                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
                                 .addAsManifestResource("in-container-context.xml", "context.xml")
                                 .setWebXML("in-container-web.xml");

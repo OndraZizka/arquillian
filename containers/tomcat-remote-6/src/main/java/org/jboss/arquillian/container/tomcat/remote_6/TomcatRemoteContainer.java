@@ -367,20 +367,26 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             
             
             
-            // For each servlet MBean of the given context...
+            final String virtualHost = "localhost";
+            final String contextPath = "/" + context;
+            
+            // Construct the MBean query string.
             // Catalina:j2eeType=Servlet,name=Manager,WebModule=//localhost/manager,J2EEApplication=none,J2EEServer=none
-            String jmxWebModuleName = "//localhost/" + context;
+            String jmxWebModuleName = "//"+virtualHost+"/" + context;
             ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,WebModule=" + jmxWebModuleName + ",*");
             //ObjectName servletON = ObjectName.getInstance("Catalina:j2eeType=Servlet,*"); /// DEBUG - list all servlets of all modules (contexts).
+            
             Set<ObjectInstance> servletMBeans = mbsc.queryMBeans( servletON,  null);
             if( servletMBeans.size() == 0 )
                 throw new DeploymentException("No Servlet MBeans found for: " + servletON);
             
-            // Add each servlet to the HTTPContext
+            
+            // For each servlet MBean of the given context
+            // add the servlet info to the HTTPContext.
             for( ObjectInstance oi : servletMBeans ) {
                 String servletName = oi.getObjectName().getKeyProperty("name");
                 log.fine("  Servlet: " + oi.toString());
-                httpContext.add( new Servlet( servletName, jmxWebModuleName) );
+                httpContext.add( new Servlet( servletName, contextPath) );
                 
                 /*String[] mappings = (String[]) mbsc.invoke(oi.getObjectName(), "findMappings", new Object[0], new String[0]);
                 for (String mapping : mappings) {
