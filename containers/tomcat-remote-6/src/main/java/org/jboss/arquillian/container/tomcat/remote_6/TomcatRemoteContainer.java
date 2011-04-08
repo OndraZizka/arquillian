@@ -367,8 +367,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             
             
             
-            final String virtualHost = "localhost";
-            final String contextPath = "/" + context;
+            final String virtualHost = "localhost"; // TODO: Can be other virt host.
             
             // Construct the MBean query string.
             // Catalina:j2eeType=Servlet,name=Manager,WebModule=//localhost/manager,J2EEApplication=none,J2EEServer=none
@@ -386,7 +385,7 @@ public class TomcatRemoteContainer implements DeployableContainer<TomcatRemoteCo
             for( ObjectInstance oi : servletMBeans ) {
                 String servletName = oi.getObjectName().getKeyProperty("name");
                 log.fine("  Servlet: " + oi.toString());
-                httpContext.add( new Servlet( servletName, contextPath) );
+                httpContext.add( new Servlet( servletName, context) );
                 
                 /*String[] mappings = (String[]) mbsc.invoke(oi.getObjectName(), "findMappings", new Object[0], new String[0]);
                 for (String mapping : mappings) {
