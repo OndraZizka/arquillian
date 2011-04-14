@@ -75,12 +75,20 @@ public class TomcatRemoteInContainerTestCase
             WELD_VERSION = "1.1.0.Final";
         log.fine("  Using weld-servlet version: " + WELD_VERSION);
         
+        final String JAVAEE_VERSION = "1.0.0.Final";
+        
         WebArchive war = ShrinkWrap.create(WebArchive.class, "test2.war")
                                 .addClasses(TestServlet.class, TestBean.class)
                                    .addAsLibraries(
-                                         DependencyResolvers.use(MavenDependencyResolver.class)
+                                         DependencyResolvers.use(MavenDependencyResolver.class).loadReposFromPom("pom.xml")
                                                 // TODO: Make the version being taken from package.
-                                               .artifact("org.jboss.weld.servlet:weld-servlet:" + WELD_VERSION).resolveAs(GenericArchive.class))
+                                               .artifact("org.jboss.weld.servlet:weld-servlet") //:" + WELD_VERSION)
+                
+                                                //javax.enterprise.inject.spi.BeanManager,
+                                                //org.jboss.weld.resources.ManagerObjectFactory
+                                               .artifact("org.jboss.spec:jboss-javaee-6.0") //:" + JAVAEE_VERSION)
+                                               .resolveAs(GenericArchive.class))
+
                                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")
                                 .addAsManifestResource("in-container-context.xml", "context.xml")
                                 .setWebXML("in-container-web.xml");
