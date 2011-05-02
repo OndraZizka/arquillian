@@ -80,13 +80,16 @@ public class TomcatRemoteInContainerTestCase
         WebArchive war = ShrinkWrap.create(WebArchive.class, "test2.war")
                                 .addClasses(TestServlet.class, TestBean.class)
                                    .addAsLibraries(
-                                         DependencyResolvers.use(MavenDependencyResolver.class).loadReposFromPom("pom.xml")
+                                         DependencyResolvers.use(MavenDependencyResolver.class).loadDependenciesFromPom("pom.xml") //loadReposFromPom
                                                 // TODO: Make the version being taken from package.
-                                               .artifact("org.jboss.weld.servlet:weld-servlet") //:" + WELD_VERSION)
+                                               .artifact("org.jboss.weld.servlet:weld-servlet:" + WELD_VERSION)
                 
                                                 //javax.enterprise.inject.spi.BeanManager,
                                                 //org.jboss.weld.resources.ManagerObjectFactory
-                                               .artifact("org.jboss.spec:jboss-javaee-6.0") //:" + JAVAEE_VERSION)
+                                                //.artifact("org.jboss.spec:jboss-javaee-6.0") //:" + JAVAEE_VERSION)
+                                                .artifact("javax.enterprise:cdi-api:1.0")
+            
+                
                                                .resolveAs(GenericArchive.class))
 
                                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml")

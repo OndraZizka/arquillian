@@ -147,14 +147,14 @@
          <version>6.0</version>
       </dependency>
       -->
-      <!-- Test will determine versions from this pom. -->
-      
-        <dependency>
-            <groupId>javax.enterprise</groupId>
-            <artifactId>cdi-api</artifactId>
-            <version>1.0</version>
-            <scope>test</scope>
-        </dependency>
+      <!-- Test will determine versions from this pom.
+      <dependency>
+        <groupId>javax.enterprise</groupId>
+        <artifactId>cdi-api</artifactId>
+        <version>1.0</version>
+        <scope>test</scope>
+      </dependency>
+      -->
 
       <!-- Or instead of that, 
       <dependency>
